@@ -1,2 +1,3 @@
-# ExampleService
-An Example Microservice
+ExampleService
+===========
+

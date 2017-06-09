@@ -1,0 +1,11 @@
+# IntelliJ
+/.idea
+*.iml
+/.gradle
+build/
+test-output/
+/out
+/classes
+.DS_Store
+
+/formServiceWebapp/src/main/webapp/WEB-INF/docs/generated

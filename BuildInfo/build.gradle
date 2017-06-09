@@ -1,0 +1,249 @@
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.amazonaws.services.cloudformation.model.Output
+import com.amazonaws.services.cloudformation.model.Stack
+import com.amazonaws.services.cloudformation.model.Tag
+import com.amazonaws.services.s3.model.ObjectMetadata
+import groovy.json.JsonSlurper
+import jp.classmethod.aws.gradle.cloudformation.AmazonCloudFormationMigrateStackTask
+import jp.classmethod.aws.gradle.cloudformation.AmazonCloudFormationWaitStackStatusTask
+import jp.classmethod.aws.gradle.elasticbeanstalk.AWSElasticBeanstalkCreateApplicationVersionTask
+import jp.classmethod.aws.gradle.elasticbeanstalk.AWSElasticBeanstalkCreateEnvironmentTask
+import jp.classmethod.aws.gradle.elasticbeanstalk.AWSElasticBeanstalkWaitEnvironmentStatusTask
+import jp.classmethod.aws.gradle.s3.AmazonS3FileUploadTask
+
+apply plugin: 'jp.classmethod.aws.cloudformation'
+apply plugin: 'jp.classmethod.aws.beanstalk'
+
+defaultValueFor 'profile', 'dev'
+defaultValueFor 'ServiceConfigStackName', 'live-config'
+defaultValueFor 'ProjectTag', 'commonsvc'
+
+aws {
+    profileName = AWS_PROFILE
+    region = AWS_REGION
+
+    // TODO this manual override is needed as the jp.classmethod built its own chain (which didn't know about ECS task roles...)
+    credentialsProvider = new DefaultAWSCredentialsProviderChain()
+}
+
+cloudFormation {
+    stackName = EnvName
+}
+
+task taskGetStackOutputs(group: 'internal') << {
+    Stack stack = cloudFormation.getStack(EnvName).get()
+    // TODO consider stuff all outputs...
+    rootProject.ext.set('BeanstalkApplication', stack.getOutputs().find {
+        it.outputKey == 'BeanstalkApplication'
+    }.outputValue)
+    rootProject.ext.set('BeanstalkEnvironment', stack.getOutputs().find {
+        it.outputKey == 'BeanstalkEnvironment'
+    }.outputValue)
+
+    // don't need to specify if we have existing stack
+    if (!rootProject.hasProperty('ServiceConfigStackName')) {
+        rootProject.ext.set('ServiceConfigStackName', cloudFormation.getStackParameterValue(EnvName, 'ServiceConfigStackName'))
+    }
+}
+
+task taskGetCommonStackOutputs(group: 'internal') << {
+    Stack stack = cloudFormation.getStack(ServiceConfigStackName).get()
+    // TODO consider stuff all outputs...
+    rootProject.ext.set('CFSourceBucket', stack.getOutputs().find {
+        it.outputKey == 'CFSourceBucket'
+    }.outputValue)
+
+    Output repo = stack.getOutputs().find {
+        it.outputKey == 'CodeRepository'
+    }
+    if (repo != null) {
+        rootProject.ext.set('CodeRepository', repo.outputValue)
+    }
+}
+
+task setupEnvironment(group: 'internal', dependsOn: taskGetCommonStackOutputs) << {
+
+    // TODO this should be a live lookup from service registry
+    defaultValueFor 'LoginServiceEndpoint', 'https://gw-loginservice-qa.dev-live.guidewire.net'
+
+    defaultValueFor 'ServiceAlertEmail', 'live-ops@guidewire.com'
+    defaultValueFor 'SumoEndpoint', 'ENC(KMS|AQECAHiiw8Xu0Le8VMWThEHgIKR+5f2taJpm3AEFG224Wha5vAAAAQ4wggEKBgkqhkiG9w0BBwaggfwwgfkCAQAwgfMGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMbfc8nb7w+S+6wf9xAgEQgIHFeh0uTSdUqLIeDRWIoFYLEj10YwbS0+PlOAqQMR1Hh6UjKHQaFNSf9O4SxuSbF4pEocmUlvFj+LuieW3mQVSSnlld8CMBPBjE4Jnc2nT7DL0XSbtkX6LWRtGP2Kj4lf8RNcxVBznj0lN7ARR8pi1om1VB4Gt9AKf8HLZHTYmCZd/0MFvnUpCNRrmARtIKaSdFhMH6EaTTPXJdZEvsJJ8arPdo8dC9YdLyeRM2tedp9WwLckel2v3sTCaV2awSuM37znEGRLg=)'
+
+    // TODO assumes that the file will be dropped off in project root dir (to skip dealing with file system separators...
+    rootProject.ext.set 'BuildOutputArtifact', project(':exampleServiceWebapp').tasks['war'].archiveName
+
+    rootProject.ext.set('CodeObjectName', "${EnvName}.zip".toString())
+
+    if ('qa'.equals(profile)) {
+        rootProject.ext.set 'BuildAllResources', 'true'
+
+    } else if ('prod'.equals(profile)) {
+        rootProject.ext.set 'BuildAllResources', 'true'
+        rootProject.ext.set 'BuildBuildPipeline', 'false'
+        rootProject.ext.set 'BuildAsDeveloper', 'false'
+        rootProject.ext.set 'LoginServiceEndpoint', 'https://gw-loginservice-prod.guidewire.net'
+        rootProject.ext.set 'BeanstalkSSLCertARNOverride', 'arn:aws:acm:us-east-1:166386130353:certificate/9a6d5696-a8d2-4568-a63d-7ae438957f15'
+        rootProject.ext.set 'SumoEndpoint', 'ENC(KMS|AQECAHhGCM0Elr+oh/8Y/RSCMYAXMmHIeg57jBbu/SNTW54kpQAAAQ4wggEKBgkqhkiG9w0BBwaggfwwgfkCAQAwgfMGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMKqgjQrFrLBCh3wEJAgEQgIHFowD2wOwvVoWvxPcEjldZfVhpNsmz5IWmHw3XV4OHdsn/9FMUAofgG+dd0lIIAR0Sgi61GIqfx50dQVkSR0tONKt2xuh0ePQJJ4DKcLaMx8a+oKCW4kXQ0h8y+XrHWM4pID976leKVu4eskKymipikhGXhbVeYBei5Wh7k9ql6TkdMJi2x8gGdrYdCMIjIm0nc2P6+FtHYBWTorxnijaldCMyhBHg9EvprfRgaC/MR6yYHfZjh3y9AknBKxA1vh2NbGoO73M=)'
+
+    }
+}
+
+task taskUploadServiceResources(type: AmazonS3FileUploadTask) {
+    group 'internal'
+    dependsOn taskGetCommonStackOutputs
+    file file('src/main/cloudFormation/ServiceTemplate.json')
+
+    def m = new ObjectMetadata()
+    m.setCacheControl("no-cache, no-store")
+    objectMetadata = m
+
+    doFirst {
+        bucketName CFSourceBucket
+        key "${rootProject.name}/ServiceTemplate.json_${BuildTimestamp}"
+    }
+}
+
+def addTemplateParameters(parsedTemplate, source, params) {
+    for (def entry : source) {
+        if ((entry.value in String) && (parsedTemplate.Parameters.containsKey(entry.key))) {
+            params.put(entry.key, entry.value)
+        }
+    }
+}
+
+def collectParams(parsedTemplate) {
+    def params = [:]
+    addTemplateParameters(parsedTemplate, System.getenv(), params)
+    addTemplateParameters(parsedTemplate, System.getProperties(), params)
+    addTemplateParameters(parsedTemplate, rootProject.ext.properties, params)
+
+    return params
+}
+
+task taskServiceResources(type: AmazonCloudFormationMigrateStackTask) {
+    dependsOn taskUploadServiceResources, setupEnvironment
+    stackName EnvName
+
+    // TODO we both limit to Strings and entries in the parameters section of the template :-)
+    def template = file('src/main/cloudFormation/ServiceTemplate.json')
+    def parsedTemplate = new JsonSlurper().parseText(template.text)
+    capabilityIam true
+
+    doFirst {
+        def params = collectParams(parsedTemplate)
+        for (def entry : rootProject.ext.properties) {
+            if ((entry.value in String) && (parsedTemplate.Parameters.containsKey(entry.key))) {
+                params.put(entry.key, entry.value)
+            }
+        }
+        //println '*** StackParams ->' + params
+
+        setCfnStackParams cloudFormation.toParameters(params)
+        cfnTemplateUrl "https://s3.amazonaws.com/${CFSourceBucket}/${taskUploadServiceResources.key}"
+        setCfnStackTags([new Tag().withKey('Project').withValue(ProjectTag)])
+
+        if (!rootProject.hasProperty('BuildAllResources')) {
+            if (Boolean.parseBoolean(cloudFormation.getStackParameterValue(EnvName, 'BuildAllResources'))) {
+                cfnStackParams.addAll(cloudFormation.toParameters(BuildAllResources: 'true'))
+            }
+        }
+    }
+}
+
+class ObjectDownload extends DefaultTask {
+    @Input
+    String sourceUrl
+
+    @OutputFile
+    File target
+
+    @TaskAction
+    void download() {
+        ant.get(src: sourceUrl, dest: target)
+    }
+}
+
+defaultValueFor 'WarUri', 'TODO' // TODO this should be part of two tasks
+
+task taskGetWarfile(type: ObjectDownload) {
+    group 'internal'
+
+    sourceUrl WarUri
+
+    // TODO name should come from artifact basename
+    target file("build/artifacts/exampleServiceWebapp.war_${BuildTimestamp}")
+}
+
+task taskUploadWarfile(type: AmazonS3FileUploadTask) {
+    group 'internal'
+    dependsOn taskGetWarfile, taskGetCommonStackOutputs
+
+    def m = new ObjectMetadata()
+    m.setCacheControl("no-cache, no-store")
+    objectMetadata = m
+
+    doFirst {
+        file taskGetWarfile.target
+        def archiveName = taskGetWarfile.target.name
+
+        bucketName CFSourceBucket
+        key "${rootProject.name}/${archiveName}_${BuildTimestamp}"
+    }
+}
+
+task taskBeanstalkCreateVersion(type: AWSElasticBeanstalkCreateApplicationVersionTask) {
+    group 'internal'
+    dependsOn taskUploadWarfile, taskGetStackOutputs
+
+    doFirst {
+        appName BeanstalkApplication
+        versionLabel taskGetWarfile.target.name
+        bucketName CFSourceBucket
+        key taskUploadWarfile.key
+    }
+}
+
+task taskBeanstalkUpdate(type: AWSElasticBeanstalkCreateEnvironmentTask) {
+    group 'internal'
+    dependsOn taskBeanstalkCreateVersion
+
+    doFirst {
+        appName BeanstalkApplication
+        envName BeanstalkEnvironment
+        versionLabel taskBeanstalkCreateVersion.versionLabel
+    }
+}
+
+task taskBeanstalkUpdateAndWaitCompleted(type: AWSElasticBeanstalkWaitEnvironmentStatusTask) {
+    group 'internal'
+    dependsOn taskBeanstalkUpdate
+
+    doFirst {
+        appName taskBeanstalkUpdate.appName
+        envName taskBeanstalkUpdate.envName
+    }
+}
+
+task taskServiceResourcesAndWaitCompleted(type: AmazonCloudFormationWaitStackStatusTask) {
+    dependsOn taskServiceResources
+    stackName EnvName
+}
+
+task setup {
+    group 'devtools'
+    description 'setup resources according to specified profile'
+    dependsOn taskServiceResourcesAndWaitCompleted
+}
+
+task deployWar {
+    group 'devtools'
+    description 'build the warfile and deploy it as a new version to the beanstalk environment'
+    dependsOn taskBeanstalkUpdateAndWaitCompleted
+}
+
+task destroySetup {
+    group 'devtools'
+    description 'remove resources used by this project'
+    dependsOn awsCfnDeleteStackAndWaitCompleted
+}
+

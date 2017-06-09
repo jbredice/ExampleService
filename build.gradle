@@ -1,0 +1,471 @@
+import org.ajoberstar.grgit.Grgit
+import org.apache.tools.ant.filters.ReplaceTokens
+
+// Variables defined in buildScript can't be overwritten by env or system property, unlike those defined in gradle.properties
+ext.defaultValueFor = { String name, String value ->
+    if (!project.hasProperty(name)) {
+        rootProject.ext.set(name, value)
+    }
+}
+
+def __findProperty(String key, String defaultValue = null) {
+    if (hasProperty(key)) {
+        return property(key)
+    }
+
+    if (System.getProperty(key)) {
+        return System.getProperty(key)
+    }
+
+    if (System.getenv(key)) {
+        return System.getenv(key)
+    }
+
+    return defaultValue
+}
+
+ext.createMapFromDefaults = { Map<String, String> defaults ->
+    def newMap = [:]
+    for (def entry : defaults) {
+        newMap.put(entry.key, __findProperty(entry.key, entry.value))
+    }
+    return newMap
+}
+
+apply plugin: 'net.researchgate.release'
+apply plugin: 'org.ajoberstar.grgit'
+apply plugin: 'java'
+
+// TODO these hard coded defaults are needed as the jp.classmethod has hard coded defaults...
+defaultValueFor 'AWS_REGION', System.env.AWS_REGION ?: 'us-west-2'
+defaultValueFor 'AWS_PROFILE', System.env.AWS_PROFILE ?: 'default'
+
+allprojects {
+    group = 'com.guidewire.cbs'
+
+    apply plugin: 'jacoco'
+
+    repositories {
+        mavenLocal()
+        maven { url 'http://nexus.guidewire.com/content/groups/public' }
+    }
+}
+
+ext {
+    // have we passed in an environment name?
+    if (__findProperty('EnvName')) {
+        EnvName = __findProperty('EnvName').toString()
+    } else {
+        def username = __findProperty('USERNAME') ?: __findProperty('USER')
+        if (!username) {
+            throw new InvalidUserDataException('USERNAME or USER must be set')
+        }
+        repo = Grgit.open()
+        EnvName = "${username}-${rootProject.name}".toString()
+    }
+
+    BuildTimestamp = new Date().format('yyyyMMddHHmmss')
+}
+
+// compile time constants
+def templateDefaults = [
+        'EnvName'       : EnvName,
+        'StackReference': "cf:${AWS_REGION}:${EnvName}".toString(),
+        'BuildTimestamp': BuildTimestamp,
+        'Version'       : project.version,
+
+        'testUsername'  : "sys-formservice-unittest@guidewire.com",
+        'testPassword'  : "Cheese_123",
+]
+
+ext {
+    // We create a map based on all provided keys and their defaults. Any of those values can be overwritten using
+    // a project property, system property or environment variable.
+    compileTimeConfigurationProperties = createMapFromDefaults templateDefaults
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'maven' // TODO change plugin
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    tasks.withType(AbstractCompile) {
+        options.encoding = 'UTF-8'
+        options.compilerArgs << '-Xlint:unchecked'
+        options.debug = true
+    }
+
+    sourceSets {
+        test {
+            compileClasspath += configurations.compileOnly
+            runtimeClasspath += configurations.compileOnly
+        }
+    }
+
+    dependencies {
+        compile("javax.servlet:javax.servlet-api:3.1.0") {
+            force = true
+        }
+
+        // Test libraries everywhere
+        testRuntime "org.slf4j:slf4j-log4j12:$slf4jVersion"
+        testRuntime "log4j:log4j:$log4jVersion"
+
+        testCompile 'org.testng:testng:6.9.10'
+        testCompile 'org.mockito:mockito-core:1.9.5'
+        testCompile 'com.github.tomakehurst:wiremock:2.1.11'
+    }
+
+    test {
+        useTestNG {
+            excludeGroups 'functional'
+        }
+
+        maxParallelForks 4
+        maxHeapSize "768m"
+
+        testLogging {
+            // set options for log level LIFECYCLE
+            events "failed"
+            exceptionFormat "short"
+
+            // set options for log level DEBUG
+            debug {
+                events "started", "skipped", "failed"
+                exceptionFormat "full"
+            }
+
+            // remove standard output/error logging from --info builds
+            // by assigning only 'failed' and 'skipped' events
+            info.events = ["failed", "skipped"]
+
+//            showCauses true
+//            showExceptions true
+//            showStackTraces true
+//            showStandardStreams true
+        }
+    }
+
+    task functionalTest(type: Test, group: 'verification') {
+        useTestNG() {
+            includeGroups 'functional'
+        }
+
+        maxParallelForks 4
+        maxHeapSize "768m"
+
+        testLogging {
+            // set options for log level LIFECYCLE
+            events "failed"
+            exceptionFormat "short"
+
+            // set options for log level DEBUG
+            debug {
+                events "started", "skipped", "failed"
+                exceptionFormat "full"
+            }
+
+            // remove standard output/error logging from --info builds
+            // by assigning only 'failed' and 'skipped' events
+            info.events = ["failed", "skipped"]
+
+//            showCauses true
+//            showExceptions true
+//            showStackTraces true
+//            showStandardStreams true
+        }
+    }
+
+    processResources {
+        group 'devtools'
+        inputs.properties compileTimeConfigurationProperties
+        from('src/main/resource-templates') {
+            filter ReplaceTokens, tokens: compileTimeConfigurationProperties
+        }
+    }
+
+    processTestResources {
+        group 'devtools'
+        inputs.properties compileTimeConfigurationProperties
+        from('src/test/resource-templates') {
+            filter ReplaceTokens, tokens: compileTimeConfigurationProperties
+        }
+    }
+
+    task sourcesJar(type: Jar, dependsOn: classes) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+
+    artifacts {
+        archives sourcesJar
+        archives javadocJar
+    }
+
+    String mavenUser = System.getenv("mavenUser")
+    String mavenPassword = System.getenv("mavenPassword")
+    uploadArchives {
+        repositories {
+            mavenDeployer {
+                repository(
+                        url: version.endsWith('-SNAPSHOT') ?
+                                'http://nexus.guidewire.com/content/repositories/snapshots/' :
+                                'http://nexus.guidewire.com/content/repositories/releases/') {
+
+                    if (mavenUser) {
+                        authentication(userName: mavenUser, password: mavenPassword)
+                    }
+                }
+            }
+        }
+    }
+}
+
+def publishedProjects = subprojects.findAll()
+
+task jacocoRootReport(type: JacocoReport, group: 'verification') {
+    description = 'Generates an aggregate report from all subprojects'
+
+    dependsOn(publishedProjects.test)
+
+    // Add all relevant sourcesets from the subprojects
+    subprojects.each {
+        sourceSets it.sourceSets.main
+    }
+
+    executionData fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec")
+
+    afterEvaluate {
+        classDirectories = files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: 'com/guidewire/live/exampleService/generated/**')
+        })
+    }
+
+    reports {
+        html.enabled = true // human readable
+        //xml.enabled = true // required by coveralls
+    }
+}
+
+check.dependsOn(jacocoRootReport)
+
+configure(project(':exampleServiceAPI')) {
+    apply plugin: 'com.github.johnrengelman.shadow'
+    apply plugin: 'org.detoeuf.swagger-codegen'
+
+    sourceCompatibility = 1.6
+    targetCompatibility = 1.6
+
+    dependencies {
+        compile "io.swagger:swagger-annotations:1.5.9"
+        compile "com.guidewire.cbs:coreLib:$coreLibJavaVersion"
+        compile("com.fasterxml.jackson.core:jackson-databind:$jacksonDatabindVersion") {
+            force = true
+        }
+
+        compile "org.slf4j:slf4j-api:$slf4jVersion"
+
+        compile "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jacksonDatabindVersion"
+        compile "org.glassfish.jersey.core:jersey-client:${jerseyVersion}"
+        compile "org.glassfish.jersey.core:jersey-common:${jerseyVersion}"
+        compile "org.glassfish.jersey.media:jersey-media-json-jackson:${jerseyVersion}"
+        compile "org.glassfish.jersey.media:jersey-media-multipart:${jerseyVersion}"
+        compile "com.brsanthu:migbase64:2.2"
+
+        // https://mvnrepository.com/artifact/commons-io/commons-io
+        compile group: 'commons-io', name: 'commons-io', version: '2.5'
+
+        testCompile "com.amazonaws:aws-java-sdk-cloudformation:$awsVersion"
+        testCompile "com.amazonaws:aws-java-sdk-s3:$awsVersion"
+        testRuntime "org.slf4j:slf4j-log4j12:$slf4jVersion"
+        testRuntime "log4j:log4j:$log4jVersion"
+    }
+
+    sourceSets {
+        main {
+            java {
+                srcDir file("${project.buildDir.path}/generated-sources/swagger/src/main/java")
+            }
+        }
+    }
+
+    swagger {
+        inputSpec = "${project.buildDir.path}/resources/main/exampleService.yaml"
+        language = 'java'
+        additionalProperties = [
+                "library"        : "jersey2",
+                "invokerPackage" : "com.guidewire.live.exampleService.generated",
+                "apiPackage"     : "com.guidewire.live.exampleService.generated.api",
+                "modelPackage"   : "com.guidewire.live.exampleService.generated.model",
+                "dateLibrary"    : "legacy",
+                "artifactVersion": project.version,
+                "supportJava6"   : "true"
+
+        ]
+        models = ''
+        apis = ''
+        supportingFiles = 'RFC3339DateFormat.java,ApiKeyAuth.java,ApiKeyAuth.java,Authentication.java,HttpBasicAuth.java,OAuth.java,OAuthFlow.java,ApiCallback.java,ApiClient.java,ApiException.java,ApiResponse.java,Configuration.java,JSON.java,Pair.java,ProgressRequestBody.java,ProgressResponseBody.java,StringUtil.java'
+    }
+
+    tasks.swagger.dependsOn(processResources)
+
+    shadowJar {
+        classifier = 'standalone'
+
+        configurations = [project.configurations.runtime]
+
+        mergeServiceFiles()
+
+        relocate(
+                'io.swagger',
+                "io.swagger.${rootProject.name}.shaded")
+        relocate(
+                'com.fasterxml',
+                "com.fasterxml.${rootProject.name}.shaded")
+        relocate(
+                'com.guidewire.live.corelib',
+                "com.guidewire.live.corelib.${rootProject.name}.shaded")
+        relocate(
+                'org.slf4j',
+                "org.slf4j.${rootProject.name}.shaded")
+        relocate(
+                'org.jvnet',
+                "org.jvnet.${rootProject.name}.shaded")
+        relocate(
+                'org.joda',
+                "org.joda.${rootProject.name}.shaded")
+        relocate(
+                'org.apache',
+                "org.apache.${rootProject.name}.shaded") {
+            exclude "org.apache.log4j**"
+        }
+        relocate(
+                'org.aopalliance',
+                "org.aopalliance.${rootProject.name}.shaded")
+        // TODO waiting on https://github.com/johnrengelman/shadow/issues/291
+//        relocate(
+//                'org.glassfish',
+//                "org.glassfish.${rootProject.name}.shaded")
+        relocate(
+                'javax.ws',
+                "javax.ws.${rootProject.name}.shaded")
+        relocate(
+                'javax.servlet',
+                "javax.servlet.${rootProject.name}.shaded")
+        relocate(
+                'javax.inject',
+                "javax.inject.${rootProject.name}.shaded")
+        relocate(
+                'javax.annotation',
+                "javax.annotation.${rootProject.name}.shaded")
+        relocate(
+                'com.migcomponents',
+                "com.migcomponents.${rootProject.name}.shaded")
+        relocate(
+                'javassist',
+                "javassist.${rootProject.name}.shaded")
+        relocate(
+                'jersey',
+                "jersey.${rootProject.name}.shaded")
+
+        // TODO there is an issue in the merged manifest where service and pom entries are published unshadowed...  BEWARE
+    }
+
+    artifacts {
+        archives jar
+        archives shadowJar
+    }
+}
+
+configure(project(':exampleServiceImpl')) {
+    dependencies {
+        compile project(':exampleServiceAPI')
+        compile 'org.hibernate:hibernate-validator:4.3.0.Final'
+        compile "org.springframework:spring-webmvc:$springVersion"
+        compile "org.springframework.security:spring-security-web:$springSecurityVersion"
+        compile "org.springframework.security:spring-security-config:$springSecurityVersion"
+        compile 'cglib:cglib:2.2'
+        compile "com.amazonaws:aws-java-sdk-s3:$awsVersion"
+        compile "com.amazonaws:aws-java-sdk-cloudformation:$awsVersion"
+        compile "com.amazonaws:aws-java-sdk-sts:$awsVersion"
+        compile 'com.google.guava:guava:19.0'
+        compile 'org.apache.commons:commons-lang3:3.4'
+        testCompile 'org.springframework:spring-test:2.5'
+    }
+}
+
+
+configure(project(':exampleServiceWebapp')) {
+    apply plugin: 'war'
+
+    dependencies {
+        compile project(':exampleServiceImpl')
+
+        runtime "org.slf4j:slf4j-log4j12:$slf4jVersion"
+        runtime "log4j:log4j:$log4jVersion"
+        runtime 'com.guidewire.cbs:sumoLoggerStandalone:4.0.0'
+
+        compile("javax.servlet:javax.servlet-api:3.1-b02") {
+            force = true
+        }
+
+        testCompile "org.apache.pdfbox:pdfbox:2.0.5"
+
+        testRuntime "org.eclipse.jetty:jetty-server:${jettyVersion}"
+        testRuntime "org.eclipse.jetty:jetty-plus:${jettyVersion}"
+    }
+
+    artifacts {
+        archives war
+    }
+
+    // TODO punt for now and drop the war file off in root dir (later deal with file path separators)
+    war {
+        destinationDir rootDir
+    }
+
+    task copyYaml(type: Copy) {
+        from project(":exampleServiceAPI").file('src/main/resources/exampleService.yaml')
+        into file('src/main/webapp/WEB-INF/docs/generated')
+    }
+
+    tasks.processResources.dependsOn(copyYaml)
+
+    task runWebapp(type: JavaExec) {
+        group "devtools"
+        description 'run the app server locally'
+
+        classpath sourceSets.test.runtimeClasspath
+        main 'com.guidewire.live.exampleServiceWebapp.tests.standalone.WebApp'
+        jvmArgs '-Djava.net.preferIPv4Stack=true'
+    }
+}
+
+release {
+    git {
+        requireBranch = 'master'
+    }
+    buildTasks = ['buildRelease']
+    failOnUnversionedFiles = false
+}
+
+task testRelease {
+    group 'internal'
+    dependsOn ':exampleServiceAPI:test', ':exampleServiceImpl:test', ':exampleServiceWebapp:test'
+}
+task uploadRelease {
+    group 'internal'
+    dependsOn ':exampleServiceAPI:uploadArchives', ':exampleServiceImpl:uploadArchives', ':exampleServiceWebapp:uploadArchives'
+    mustRunAfter testRelease
+}
+task buildRelease {
+    group 'internal'
+    dependsOn testRelease, uploadRelease
+}

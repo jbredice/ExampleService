@@ -1,0 +1,60 @@
+swagger: '2.0'
+info:
+  title: Example Service
+  description: ExampleService is a microservice example!
+  version: 1.0.0
+produces:
+  - application/json
+
+paths:
+  /app/example:
+    post:
+      tags:
+        - Example Service
+      operationId: example
+      summary: Example entry point
+      consumes:
+        - application/json
+      parameters:
+        - name: request
+          in: body
+          description: The request
+          required: true
+          schema:
+            $ref: '#/definitions/Request'
+      responses:
+        '200':
+          description: The response
+          schema:
+            $ref: '#/definitions/Response'
+
+  /status:
+    get:
+      tags:
+        - Example Service
+      operationId: getStatus
+      summary: Get service status
+      description: Get service status
+      responses:
+        '200':
+          description: A description for get status
+          schema:
+            type: string
+
+definitions:
+
+  Request:
+    description: Request object
+    required:
+      - value
+    properties:
+      value:
+        description: 'The value'
+        type: string
+
+  Response:
+    description: Response object
+    properties:
+      value:
+        description: 'The value'
+        type: string

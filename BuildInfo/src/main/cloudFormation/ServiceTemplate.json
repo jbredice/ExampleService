@@ -1,0 +1,646 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "FormService",
+  "Parameters": {
+    "EnvName": {
+      "Type": "String",
+      "Description": "Environment Name for this stack"
+    },
+    "BuildAllResources": {
+      "Type": "String",
+      "Description": "True if building all resources needed for application",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ]
+    },
+    "BuildBuildPipeline": {
+      "Type": "String",
+      "Description": "True if creating the build pipeline for this stack",
+      "Default": "true",
+      "AllowedValues": [
+        "true",
+        "false"
+      ]
+    },
+    "AdditionalBuildArguments": {
+      "Type": "String",
+      "Description": "Additional build arguments for build phase of code pipeline (passed to gradle)",
+      "Default": ""
+    },
+    "CodeObjectName": {
+      "Type": "String",
+      "Description": "Code Object name (s3 key, branch, etc)"
+    },
+    "ServiceConfigStackName": {
+      "Type": "String",
+      "Description": "Name of the external config stack"
+    },
+    "BuildOutputArtifact": {
+      "Type": "String",
+      "Description": "Gradle output file path to the output target of build"
+    },
+    "BeanstalkSolutionStackName": {
+      "Type": "String",
+      "Default": "64bit Amazon Linux 2016.03 v2.2.0 running Tomcat 8 Java 8",
+      "Description": "Name of the stack to run on beanstalk"
+    },
+    "BeanstalkInstanceType": {
+      "Type": "String",
+      "Default": "t2.small",
+      "Description": "Type of VM to run in beanstalk"
+    },
+    "BeanstalkMemMs": {
+      "Type": "String",
+      "Default": "1000m",
+      "Description": "JVM initial memory"
+    },
+    "BeanstalkMemPerm": {
+      "Type": "String",
+      "Default": "384m",
+      "Description": "JVM permgen memory"
+    },
+    "BeanstalkMemMx": {
+      "Type": "String",
+      "Default": "1200m",
+      "Description": "JVM max memory"
+    },
+    "BeanstalkMinSize": {
+      "Type": "Number",
+      "Default": 2,
+      "Description": "Minimum machines in the cluster"
+    },
+    "BeanstalkMaxSize": {
+      "Type": "Number",
+      "Default": 4,
+      "Description": "Maximum machines in the cluster"
+    },
+    "BeanstalkSSHKey": {
+      "Type": "String",
+      "Default": "",
+      "Description": "name of the ssh key to use (blank=no key)"
+    },
+    "BeanstalkSSLCertARNOverride": {
+      "Type": "String",
+      "Default": "",
+      "Description": "ARN of the ssl cert to use (blank=use config stack ARN)"
+    },
+    "ServiceAlertEmail": {
+      "Type": "String",
+      "Description": "Alert email for resource alerts from this service"
+    },
+    "LoginServiceEndpoint": {
+      "Type": "String",
+      "Description": "Where is this service's CAS?"
+    },
+    "SumoEndpoint": {
+      "Type": "String",
+      "Default": "",
+      "Description": "URI for sumo endpoint"
+    }
+  },
+  "Conditions": {
+    "BuildAllResources": {
+      "Fn::Equals": [
+        {
+          "Ref": "BuildAllResources"
+        },
+        "true"
+      ]
+    },
+    "BuildBuildPipeline": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "BuildBuildPipeline"
+            },
+            "true"
+          ]
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "BuildAllResources"
+            },
+            "true"
+          ]
+        }
+      ]
+    },
+    "UseServiceStackSSLCert": {
+      "Fn::Equals": [
+        {
+          "Ref": "BeanstalkSSLCertARNOverride"
+        },
+        ""
+      ]
+    }
+  },
+  "Resources": {
+    "ExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com",
+                  "ecs-tasks.amazonaws.com"
+                ]
+              },
+              "Action": "sts:AssumeRole"
+            },
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Ref": "AWS::AccountId"
+                }
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "formService",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName": "readKms",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "kms:Decrypt",
+                  "Resource": "*"
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName": "logRotate",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:PutObject",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:s3:::elasticbeanstalk-",
+                        {
+                          "Ref": "AWS::Region"
+                        },
+                        "-",
+                        {
+                          "Ref": "AWS::AccountId"
+                        },
+                        "/resources/environments/logs/*"
+                      ]
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "BeanstalkInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Condition": "BuildAllResources",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "ExecutionRole"
+          }
+        ]
+      }
+    },
+    "BeanstalkApplication": {
+      "Type": "AWS::ElasticBeanstalk::Application",
+      "Condition": "BuildAllResources"
+    },
+    "BeanstalkEnvironment": {
+      "Type": "AWS::ElasticBeanstalk::Environment",
+      "Condition": "BuildAllResources",
+      "Properties": {
+        "ApplicationName": {
+          "Ref": "BeanstalkApplication"
+        },
+        "Description": "FormService",
+        "OptionSettings": [
+          {
+            "Namespace": "aws:ec2:vpc",
+            "OptionName": "VPCId",
+            "Value": {
+              "Fn::ImportValue": {
+                "Fn::Sub": "${ServiceConfigStackName}-BeanstalkVPCId"
+              }
+            }
+          },
+          {
+            "Namespace": "aws:ec2:vpc",
+            "OptionName": "Subnets",
+            "Value": {
+              "Fn::ImportValue": {
+                "Fn::Sub": "${ServiceConfigStackName}-BeanstalkEC2Subnets"
+              }
+            }
+          },
+          {
+            "Namespace": "aws:ec2:vpc",
+            "OptionName": "ELBSubnets",
+            "Value": {
+              "Fn::ImportValue": {
+                "Fn::Sub": "${ServiceConfigStackName}-BeanstalkELBSubnets"
+              }
+            }
+          },
+          {
+            "Namespace": "aws:autoscaling:asg",
+            "OptionName": "MinSize",
+            "Value": {
+              "Ref": "BeanstalkMinSize"
+            }
+          },
+          {
+            "Namespace": "aws:autoscaling:asg",
+            "OptionName": "MaxSize",
+            "Value": {
+              "Ref": "BeanstalkMaxSize"
+            }
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:application",
+            "OptionName": "Application Healthcheck URL",
+            "Value": "/status"
+          },
+          {
+            "Namespace": "aws:elb:loadbalancer",
+            "OptionName": "LoadBalancerHTTPSPort",
+            "Value": "443"
+          },
+          {
+            "Namespace": "aws:elb:loadbalancer",
+            "OptionName": "SSLCertificateId",
+            "Value": {
+              "Fn::If": [
+                "UseServiceStackSSLCert",
+                {
+                  "Fn::ImportValue": {
+                    "Fn::Sub": "${ServiceConfigStackName}-BeanstalkSSLCert"
+                  }
+                },
+                {
+                  "Ref": "BeanstalkSSLCertARNOverride"
+                }
+              ]
+            }
+          },
+          {
+            "Namespace": "aws:elb:loadbalancer",
+            "OptionName": "LoadBalancerHTTPPort",
+            "Value": "OFF"
+          },
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "EC2KeyName",
+            "Value": {
+              "Ref": "BeanstalkSSHKey"
+            }
+          },
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "SSHSourceRestriction",
+            "Value": {
+              "Fn::ImportValue": {
+                "Fn::Sub": "${ServiceConfigStackName}-BeanstalkSSHSourceRestriction"
+              }
+            }
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:container:tomcat:jvmoptions",
+            "OptionName": "Xms",
+            "Value": {
+              "Ref": "BeanstalkMemMs"
+            }
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:container:tomcat:jvmoptions",
+            "OptionName": "XX:MaxPermSize",
+            "Value": {
+              "Ref": "BeanstalkMemPerm"
+            }
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:container:tomcat:jvmoptions",
+            "OptionName": "Xmx",
+            "Value": {
+              "Ref": "BeanstalkMemMx"
+            }
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:application:environment",
+            "OptionName": "PARAM1",
+            "Value": "classpath:runtimeConfig.properties"
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:application:environment",
+            "OptionName": "MyStack",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  "cf:",
+                  {
+                    "Ref": "AWS::Region"
+                  },
+                  ":",
+                  {
+                    "Ref": "AWS::StackName"
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "InstanceType",
+            "Value": {
+              "Ref": "BeanstalkInstanceType"
+            }
+          },
+          {
+            "Namespace": "aws:autoscaling:asg",
+            "OptionName": "Availability Zones",
+            "Value": "Any 3"
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:command",
+            "OptionName": "DeploymentPolicy",
+            "Value": "Rolling"
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:command",
+            "OptionName": "BatchSizeType",
+            "Value": "Fixed"
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:command",
+            "OptionName": "BatchSize",
+            "Value": "1"
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:hostmanager",
+            "OptionName": "LogPublicationControl",
+            "Value": "true"
+          },
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "IamInstanceProfile",
+            "Value": {
+              "Ref": "BeanstalkInstanceProfile"
+            }
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:sns:topics",
+            "OptionName": "Notification Endpoint",
+            "Value": {
+              "Ref": "ServiceAlertEmail"
+            }
+          },
+          {
+            "Namespace": "aws:elb:policies",
+            "OptionName": "Stickiness Policy",
+            "Value": "true"
+          },
+          {
+            "Namespace": "aws:elb:policies",
+            "OptionName": "Stickiness Cookie Expiration",
+            "Value": "300"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "MeasureName",
+            "Value": "CPUUtilization"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "Unit",
+            "Value": "Percent"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "Statistic",
+            "Value": "Average"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "LowerThreshold",
+            "Value": "20"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "UpperThreshold",
+            "Value": "60"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "UpperBreachScaleIncrement",
+            "Value": "1"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "LowerBreachScaleIncrement",
+            "Value": "-1"
+          }
+        ],
+        "SolutionStackName": {
+          "Ref": "BeanstalkSolutionStackName"
+        }
+      }
+    },
+    "ECSInvokeExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "BuildBuildPipeline",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "root",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Action": [
+                    "logs:*"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:logs:*:*:*"
+                },
+                {
+                  "Action": [
+                    "ecs:RunTask",
+                    "iam:PassRole",
+                    "ecs:DescribeTasks",
+                    "cloudformation:DescribeStacks"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ServiceRoute53RecordSet": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "BuildAllResources",
+      "Properties": {
+        "HostedZoneName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Fn::ImportValue": {
+                  "Fn::Sub": "${ServiceConfigStackName}-HostedZoneName"
+                }
+              },
+              "."
+            ]
+          ]
+        },
+        "Name": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "AWS::StackName"
+              },
+              "-",
+              {
+                "Ref": "AWS::Region"
+              },
+              ".",
+              {
+                "Fn::ImportValue": {
+                  "Fn::Sub": "${ServiceConfigStackName}-HostedZoneName"
+                }
+              },
+              "."
+            ]
+          ]
+        },
+        "Type": "CNAME",
+        "TTL": "300",
+        "ResourceRecords": [
+          {
+            "Fn::GetAtt": [
+              "BeanstalkEnvironment",
+              "EndpointURL"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "BeanstalkEnvironment": {
+      "Condition": "BuildAllResources",
+      "Value": {
+        "Ref": "BeanstalkEnvironment"
+      }
+    },
+    "BeanstalkApplication": {
+      "Condition": "BuildAllResources",
+      "Value": {
+        "Ref": "BeanstalkApplication"
+      }
+    },
+    "EnvName": {
+      "Description": "EnvName is often, but not always the same as stack name",
+      "Value": {
+        "Ref": "EnvName"
+      }
+    },
+    "ApplicationURL": {
+      "Condition": "BuildAllResources",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "ServiceRoute53RecordSet"
+            }
+          ]
+        ]
+      }
+    },
+    "ExecutionRoleArn": {
+      "Description": "The application should run as this role",
+      "Value": {
+        "Fn::GetAtt": [
+          "ExecutionRole",
+          "Arn"
+        ]
+      }
+    },
+    "AWSRegion": {
+      "Description": "Region that loginService is running in",
+      "Value": {
+        "Ref": "AWS::Region"
+      }
+    },
+    "LoginServiceEndpoint": {
+      "Description": "Where is this service's CAS?",
+      "Value": {
+        "Ref": "LoginServiceEndpoint"
+      }
+    },
+    "SumoEndpoint": {
+      "Description": "URI for sumo endpoint",
+      "Value": {
+        "Ref": "SumoEndpoint"
+      }
+    }
+  }
+}

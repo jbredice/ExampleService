@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd">
+
+  <context:annotation-config/>
+
+  <bean id="securityProperties" class="com.guidewire.live.corelib.runtime.RuntimePropertyPlaceholderConfigurer">
+    <property name="runtimeConfigUrlOverride" value="classpath:test-formService.properties"/>
+    <property name="ignoreUnresolvablePlaceholders" value="true"/>
+  </bean>
+
+  <bean id="servletContext" class="org.springframework.mock.web.MockServletContext"/>
+
+  <bean id="rendererExtractor" class="com.guidewire.live.formServiceImpl.services.RendererExtractor"/>
+
+  <bean id="mockJetFormMerger" class="com.guidewire.live.formServiceImpl.tests.MockJetFormMerger"/>
+
+  <bean id="mockDocOriginMerger" class="com.guidewire.live.formServiceImpl.tests.MockDocOriginMerger"/>
+
+  <bean id="mockFileCache" class="com.guidewire.live.formServiceImpl.tests.MockFileCache"/>
+
+  <bean id="formService" class="com.guidewire.live.formServiceImpl.services.ExampleServiceImpl"/>
+
+  <bean id="awsCredentialsProvider" class="com.guidewire.live.corelib.credentials.GWCredentialsProvider">
+    <constructor-arg value="${com.guidewire.live.exampleService.credentials.executionRoleArn}"/>
+  </bean>
+</beans>

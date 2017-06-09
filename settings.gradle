@@ -1,0 +1,44 @@
+rootProject.name = 'exampleService'
+
+include 'exampleServiceAPI'
+include 'exampleServiceImpl'
+include 'exampleServiceWebapp'
+include 'BuildInfo'
+
+gradle.allprojects {
+    ext {
+        // TODO consider using https://github.com/nebula-plugins/gradle-dependency-lock-plugin for external dependencies
+        // all versions would be clearly stored in an external JSON file, similar to mavens dependencyManagement
+
+        awsVersion = '1.11.119'
+        slf4jVersion = '1.7.21'
+        log4jVersion = '1.2.16'
+        springVersion = '4.2.5.RELEASE'
+        springSecurityVersion = '4.0.4.RELEASE'
+        jettyVersion = '9.2.12.M0'
+        jacksonDatabindVersion = '2.6.6'
+        coreLibJavaVersion = '3.0.3'
+        loginServiceVersion = '5.0.0'
+        jodatimeVersion = '2.8.1'
+        jerseyVersion = '2.25.1'
+        gwSwaggerCodegenVersion = '10.1.6'
+        sumoStandaloneVersion = '4.0.0'
+    }
+
+    buildscript {
+        // we configure all buildscripts at once, to use central maven repository
+        repositories {
+            mavenLocal()
+            maven { url 'http://nexus.guidewire.com/content/groups/public' }
+        }
+        // ... and give all of them the same classpath dependencies. This will make our actual scripts cleaner.
+        dependencies {
+            classpath 'com.guidewire.cbs:gradle-aws-plugin:0.32-gw-4'
+            classpath 'net.researchgate:gradle-release:2.4.0'
+            classpath 'org.ajoberstar:gradle-git:1.5.1'
+            classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+            classpath 'gradle.plugin.org.detoeuf:swagger-codegen-plugin:1.6.3'
+            classpath "com.guidewire.cbs:gw-swagger-codegen:$gwSwaggerCodegenVersion"
+        }
+    }
+}
