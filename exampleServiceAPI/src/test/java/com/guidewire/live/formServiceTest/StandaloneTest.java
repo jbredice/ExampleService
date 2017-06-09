@@ -21,4 +21,3 @@ public class StandaloneTest {
         System.out.println(exampleServiceApi.getStatus());
     }
 }
-HELLO

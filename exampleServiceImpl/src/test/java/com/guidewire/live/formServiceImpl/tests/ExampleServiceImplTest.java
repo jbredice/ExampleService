@@ -59,4 +59,3 @@ public class ExampleServiceImplTest extends Assert {
   }
 
 }
-HELLO

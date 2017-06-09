@@ -55,4 +55,3 @@ public class ExampleAPITest extends BaseAPITest {
     void run() throws Exception;
   }
 }
-HELLO

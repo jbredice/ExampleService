@@ -26,4 +26,3 @@ public class LoggedException extends RuntimeException {
     return extraValues;
   }
 }
-HELLO

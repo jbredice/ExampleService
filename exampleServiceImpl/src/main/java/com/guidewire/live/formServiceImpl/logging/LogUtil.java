@@ -197,4 +197,3 @@ public class LogUtil {
     return new ObjectMapper().writeValueAsString(values);
   }
 }
-HELLO

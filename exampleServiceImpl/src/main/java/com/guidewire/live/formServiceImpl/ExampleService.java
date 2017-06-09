@@ -9,4 +9,3 @@ public interface ExampleService {
   Response operation(Request request, String companyDn);
 
 }
-HELLO

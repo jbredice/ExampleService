@@ -17,4 +17,3 @@ public interface ServiceWebappConstants {
   String ERROR403_PATH = "/error/403";
 
 }
-HELLO

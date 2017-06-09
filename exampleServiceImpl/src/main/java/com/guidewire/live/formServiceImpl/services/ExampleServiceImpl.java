@@ -24,4 +24,3 @@ public class ExampleServiceImpl implements ExampleService {
         this.envName = envName;
     }
 }
-HELLO
