@@ -61,7 +61,10 @@ ext {
             throw new InvalidUserDataException('USERNAME or USER must be set')
         }
         repo = Grgit.open()
-        EnvName = "${username}-${rootProject.name}".toString()
+
+        def branch = username == "jenkins" ? "-${repo.branch.current.name}" : ""
+
+        EnvName = "${username}" + branch + "-${rootProject.name}".toString()
     }
 
     BuildTimestamp = new Date().format('yyyyMMddHHmmss')
