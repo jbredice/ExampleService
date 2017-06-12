@@ -32,7 +32,11 @@ cloudFormation {
 
 task taskGetStackOutputs(group: 'internal') << {
     logger.warn(' ======> ' + EnvName)
-    Stack stack = cloudFormation.getStack(EnvName).get()
+    def theStack = cloudFormation.getStack(EnvName)
+    if (theStack == null) {
+        throw new Exception("Stack " + EnvName + "does not exist.")
+    }
+    Stack stack = theStack.get()
     // TODO consider stuff all outputs...
     rootProject.ext.set('BeanstalkApplication', stack.getOutputs().find {
         it.outputKey == 'BeanstalkApplication'
