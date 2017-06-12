@@ -9,7 +9,7 @@ phases:
     commands:
       - echo Running my-script.sh on `date`
       - chmod +x ./gradlew
-      - ./gradlew build
+      - bash ./gradlew build
 artifacts:
   files:
     - exampleServiceWebapp-0.1.0-SNAPSHOT.war
