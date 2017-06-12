@@ -31,6 +31,7 @@ cloudFormation {
 }
 
 task taskGetStackOutputs(group: 'internal') << {
+    println " ====> " + EnvName
     Stack stack = cloudFormation.getStack(EnvName).get()
     // TODO consider stuff all outputs...
     rootProject.ext.set('BeanstalkApplication', stack.getOutputs().find {
@@ -163,12 +164,11 @@ class ObjectDownload extends DefaultTask {
     }
 }
 
-defaultValueFor 'WarUri', 'TODO' // TODO this should be part of two tasks
-
 task taskGetWarfile(type: ObjectDownload) {
     group 'internal'
 
-    sourceUrl WarUri
+    print rootProject.path
+    sourceUrl file("${rootProject.projectDir}/${rootProject.name}Webapp-${rootProject.version}.war").toURL().toString()
 
     // TODO name should come from artifact basename
     target file("build/artifacts/exampleServiceWebapp.war_${BuildTimestamp}")
