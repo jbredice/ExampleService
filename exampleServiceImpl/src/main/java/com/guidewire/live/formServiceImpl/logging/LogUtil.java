@@ -19,7 +19,7 @@ public class LogUtil {
   public static final String SERVICE = "service";
   public static final String ENTRY_POINT = "entryPoint";
   public static final String REQUEST = "request";
-  public static final String SERVICE_NAME = "FormService";
+  public static final String SERVICE_NAME = "ExampleService";
 
   public static void info(String action, Logger logger) {
     LinkedHashMap<String, Object> values = new LinkedHashMap<>();
@@ -197,3 +197,4 @@ public class LogUtil {
     return new ObjectMapper().writeValueAsString(values);
   }
 }
+HELLO

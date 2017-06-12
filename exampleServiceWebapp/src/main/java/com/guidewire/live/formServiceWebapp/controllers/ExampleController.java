@@ -29,13 +29,13 @@ public class ExampleController {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExampleController.class);
 
   @Autowired
-  private ExampleService formService;
+  private ExampleService exampleService;
 
   @RequestMapping(value = ServiceWebappConstants.APP_OPERATION_SEGMENT, method = RequestMethod.POST)
   public Response merge(@RequestBody Request request, HttpServletRequest req, Authentication authentication) {
     instrument(req, request);
     String companyId = "gw";
-    return formService.operation(request, companyId);
+    return exampleService.operation(request, companyId);
   }
 
   // exception handling
@@ -59,3 +59,4 @@ public class ExampleController {
   }
 
 }
+HELLO

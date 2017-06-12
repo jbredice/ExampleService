@@ -1,0 +1,15 @@
+version: 0.2
+
+env:
+  variables:
+    JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-amd64"
+
+phases:
+  build:
+    commands:
+      - echo Running my-script.sh on `date`
+      - ./my-script.sh
+artifacts:
+  files:
+    - exampleServiceWebapp-0.1.0-SNAPSHOT.war
+  discard-paths: yes

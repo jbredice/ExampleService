@@ -264,6 +264,12 @@ configure(project(':exampleServiceAPI')) {
     targetCompatibility = 1.6
 
     dependencies {
+//        TODO-dp remove
+        compile("com.guidewire.cbs:loginServiceAPIClient:${loginServiceVersion}") {
+            // ensure we're off the log4j api...
+            exclude group: 'log4j'
+        }
+
         compile "io.swagger:swagger-annotations:1.5.9"
         compile "com.guidewire.cbs:coreLib:$coreLibJavaVersion"
         compile("com.fasterxml.jackson.core:jackson-databind:$jacksonDatabindVersion") {
