@@ -31,7 +31,7 @@ cloudFormation {
 }
 
 task taskGetStackOutputs(group: 'internal') << {
-    println " ====> " + EnvName
+    logger.warn(' ======> ' + EnvName)
     Stack stack = cloudFormation.getStack(EnvName).get()
     // TODO consider stuff all outputs...
     rootProject.ext.set('BeanstalkApplication', stack.getOutputs().find {
