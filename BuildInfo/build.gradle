@@ -33,7 +33,8 @@ cloudFormation {
 task taskGetStackOutputs(group: 'internal') << {
     logger.warn(' ======> ' + EnvName)
     def theStack = cloudFormation.getStack(EnvName)
-    if (theStack == null) {
+    logger.warn(' ======> ' + theStack)
+    if (theStack) {
         throw new Exception("Stack " + EnvName + "does not exist.")
     }
     Stack stack = theStack.get()
