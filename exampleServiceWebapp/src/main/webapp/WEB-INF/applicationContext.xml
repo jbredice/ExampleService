@@ -23,7 +23,7 @@
     <property name="appName" value="${com.guidewire.logger.appName}"/>
   </bean>
 
-  <context:component-scan base-package="com.guidewire.live.formServiceImpl.services"/>
+  <context:component-scan base-package="com.guidewire.live.exampleServiceImpl.services"/>
 
   <bean id="awsCredentialsProvider" class="com.guidewire.live.corelib.credentials.GWCredentialsProvider">
     <constructor-arg value="${com.guidewire.live.exampleService.credentials.executionRoleArn}"/>

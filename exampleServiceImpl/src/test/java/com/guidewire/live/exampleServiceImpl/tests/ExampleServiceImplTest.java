@@ -1,19 +1,14 @@
-package com.guidewire.live.formServiceImpl.tests;
+package com.guidewire.live.exampleServiceImpl.tests;
 
 import com.guidewire.live.exampleService.generated.model.Request;
-import com.guidewire.live.formServiceImpl.logging.LoggedException;
-import com.guidewire.live.formServiceImpl.services.ExampleServiceImpl;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
+import com.guidewire.live.exampleServiceImpl.logging.LoggedException;
+import com.guidewire.live.exampleServiceImpl.services.ExampleServiceImpl;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.Properties;
-import java.util.UUID;
-
 public class ExampleServiceImplTest extends Assert {
-  private ExampleServiceImpl formService;
+  private ExampleServiceImpl exampleService;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -24,10 +19,10 @@ public class ExampleServiceImplTest extends Assert {
 //
 //    String envName = "test-" + UUID.randomUUID().toString();
 //
-//    final ApplicationContext context = new ClassPathXmlApplicationContext("test-formService.xml");
+//    final ApplicationContext context = new ClassPathXmlApplicationContext("test-exampleService.xml");
 //
-//    formService = (ExampleServiceImpl) context.getBean("formService");
-//    formService.setEnvName(envName);
+//    exampleService = (ExampleServiceImpl) context.getBean("exampleService");
+//    exampleService.setEnvName(envName);
   }
 
   @Test
@@ -38,7 +33,7 @@ public class ExampleServiceImplTest extends Assert {
 
 
   private void assertException(Request request, String companyDn, int status, String message) {
-    assertFailure(() -> formService.operation(request, companyDn), status, message);
+    assertFailure(() -> exampleService.operation(request, companyDn), status, message);
   }
 
   public static void assertFailure(RunnableWithException r, int code, String... errors) {
@@ -59,3 +54,4 @@ public class ExampleServiceImplTest extends Assert {
   }
 
 }
+HELLO

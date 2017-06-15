@@ -1,4 +1,4 @@
-package com.guidewire.live.formServiceWebapp.tests.end2end;
+package com.guidewire.live.exampleServiceWebapp.tests.end2end;
 
 import com.guidewire.live.exampleService.generated.api.ExampleServiceApi;
 
@@ -8,3 +8,4 @@ public class FunctionalTestFixture {
   }
 
 }
+HELLO

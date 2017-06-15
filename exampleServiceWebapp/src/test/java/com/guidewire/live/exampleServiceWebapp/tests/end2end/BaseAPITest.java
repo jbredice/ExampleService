@@ -1,13 +1,8 @@
-package com.guidewire.live.formServiceWebapp.tests.end2end;
+package com.guidewire.live.exampleServiceWebapp.tests.end2end;
 
-import com.guidewire.live.corelib.client.ClientConfig;
-import com.guidewire.live.corelib.runtime.RuntimePropertyResolver;
 import com.guidewire.live.exampleService.generated.ApiClient;
 import com.guidewire.live.exampleService.generated.ApiException;
 import com.guidewire.live.exampleService.generated.api.ExampleServiceApi;
-import com.guidewire.live.exampleService.generated.api.ExampleServiceApiFactory;
-import com.guidewire.live.formServiceImpl.services.ExampleServiceImpl;
-import com.guidewire.live.formServiceWebapp.tests.standalone.WebApp;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.slf4j.Logger;
@@ -19,11 +14,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
 import javax.ws.rs.core.GenericType;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Properties;
-import java.util.UUID;
 
 public class BaseAPITest extends Assert {
   private static final Logger LOGGER = LoggerFactory.getLogger(BaseAPITest.class);
@@ -43,14 +35,14 @@ public class BaseAPITest extends Assert {
 //    socket.close();
 //    server = WebApp.startServer(port);
 //    endpoint = String.format("http://localhost:%d", port);
-//    LOGGER.info(String.format("loginServiceEndpoint[%s]", endpoint));
+//    LOGGER.info(String.format("serviceEndpoint[%s]", endpoint));
 //    // we run this again for the *client* context here to ensure ordering of init...
 //    System.setProperty("service.http.endpoint", endpoint);
 //
 //    WebAppContext ctx = (WebAppContext) server.getHandler();
 //    WebApplicationContext app = getApp(ctx);
-//    ExampleServiceImpl formService = app.getBean(ExampleServiceImpl.class);
-//    formService.setEnvName("test-" + UUID.randomUUID().toString());
+//    ExampleServiceImpl exampleService = app.getBean(ExampleServiceImpl.class);
+//    exampleService.setEnvName("test-" + UUID.randomUUID().toString());
 //
 //    Properties properties = new RuntimePropertyResolver("classpath:test-client.properties").getProperties();
 //    ClientConfig config = new ClientConfig()
@@ -85,3 +77,4 @@ public class BaseAPITest extends Assert {
             });
   }
 }
+HELLO

@@ -1,4 +1,4 @@
-package com.guidewire.live.formServiceWebapp.tests.end2end;
+package com.guidewire.live.exampleServiceWebapp.tests.end2end;
 
 import com.guidewire.live.corelib.client.ClientConfig;
 import com.guidewire.live.corelib.runtime.RuntimePropertyResolver;
@@ -31,3 +31,4 @@ public class FunctionalTest extends Assert {
   }
 
 }
+HELLO

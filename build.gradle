@@ -74,9 +74,6 @@ def templateDefaults = [
         'StackReference': "cf:${AWS_REGION}:${EnvName}".toString(),
         'BuildTimestamp': BuildTimestamp,
         'Version'       : project.version,
-
-        'testUsername'  : "sys-formservice-unittest@guidewire.com",
-        'testPassword'  : "Cheese_123",
 ]
 
 ext {

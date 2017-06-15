@@ -31,7 +31,6 @@ cloudFormation {
 }
 
 task taskGetStackOutputs(group: 'internal') << {
-    logger.warn(' ======> ' + EnvName)
     def theStack = cloudFormation.getStack(EnvName)
     if (!theStack.isPresent()) {
         throw new Exception("Stack '" + EnvName + "' does not exist.")
@@ -67,10 +66,6 @@ task taskGetCommonStackOutputs(group: 'internal') << {
 }
 
 task setupEnvironment(group: 'internal', dependsOn: taskGetCommonStackOutputs) << {
-
-    // TODO this should be a live lookup from service registry
-    defaultValueFor 'LoginServiceEndpoint', 'https://gw-loginservice-qa.dev-live.guidewire.net'
-
     defaultValueFor 'ServiceAlertEmail', 'live-ops@guidewire.com'
     defaultValueFor 'SumoEndpoint', 'ENC(KMS|AQECAHiiw8Xu0Le8VMWThEHgIKR+5f2taJpm3AEFG224Wha5vAAAAQ4wggEKBgkqhkiG9w0BBwaggfwwgfkCAQAwgfMGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMbfc8nb7w+S+6wf9xAgEQgIHFeh0uTSdUqLIeDRWIoFYLEj10YwbS0+PlOAqQMR1Hh6UjKHQaFNSf9O4SxuSbF4pEocmUlvFj+LuieW3mQVSSnlld8CMBPBjE4Jnc2nT7DL0XSbtkX6LWRtGP2Kj4lf8RNcxVBznj0lN7ARR8pi1om1VB4Gt9AKf8HLZHTYmCZd/0MFvnUpCNRrmARtIKaSdFhMH6EaTTPXJdZEvsJJ8arPdo8dC9YdLyeRM2tedp9WwLckel2v3sTCaV2awSuM37znEGRLg=)'
 
@@ -86,7 +81,6 @@ task setupEnvironment(group: 'internal', dependsOn: taskGetCommonStackOutputs) <
         rootProject.ext.set 'BuildAllResources', 'true'
         rootProject.ext.set 'BuildBuildPipeline', 'false'
         rootProject.ext.set 'BuildAsDeveloper', 'false'
-        rootProject.ext.set 'LoginServiceEndpoint', 'https://gw-loginservice-prod.guidewire.net'
         rootProject.ext.set 'BeanstalkSSLCertARNOverride', 'arn:aws:acm:us-east-1:166386130353:certificate/9a6d5696-a8d2-4568-a63d-7ae438957f15'
         rootProject.ext.set 'SumoEndpoint', 'ENC(KMS|AQECAHhGCM0Elr+oh/8Y/RSCMYAXMmHIeg57jBbu/SNTW54kpQAAAQ4wggEKBgkqhkiG9w0BBwaggfwwgfkCAQAwgfMGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMKqgjQrFrLBCh3wEJAgEQgIHFowD2wOwvVoWvxPcEjldZfVhpNsmz5IWmHw3XV4OHdsn/9FMUAofgG+dd0lIIAR0Sgi61GIqfx50dQVkSR0tONKt2xuh0ePQJJ4DKcLaMx8a+oKCW4kXQ0h8y+XrHWM4pID976leKVu4eskKymipikhGXhbVeYBei5Wh7k9ql6TkdMJi2x8gGdrYdCMIjIm0nc2P6+FtHYBWTorxnijaldCMyhBHg9EvprfRgaC/MR6yYHfZjh3y9AknBKxA1vh2NbGoO73M=)'
 

@@ -10,21 +10,21 @@
   <context:annotation-config/>
 
   <bean id="securityProperties" class="com.guidewire.live.corelib.runtime.RuntimePropertyPlaceholderConfigurer">
-    <property name="runtimeConfigUrlOverride" value="classpath:test-formService.properties"/>
+    <property name="runtimeConfigUrlOverride" value="classpath:test-exampleService.properties"/>
     <property name="ignoreUnresolvablePlaceholders" value="true"/>
   </bean>
 
   <bean id="servletContext" class="org.springframework.mock.web.MockServletContext"/>
 
-  <bean id="rendererExtractor" class="com.guidewire.live.formServiceImpl.services.RendererExtractor"/>
+  <bean id="rendererExtractor" class="com.guidewire.live.exampleServiceImpl.services.RendererExtractor"/>
 
-  <bean id="mockJetFormMerger" class="com.guidewire.live.formServiceImpl.tests.MockJetFormMerger"/>
+  <bean id="mockJetFormMerger" class="com.guidewire.live.exampleServiceImpl.tests.MockJetFormMerger"/>
 
-  <bean id="mockDocOriginMerger" class="com.guidewire.live.formServiceImpl.tests.MockDocOriginMerger"/>
+  <bean id="mockDocOriginMerger" class="com.guidewire.live.exampleServiceImpl.tests.MockDocOriginMerger"/>
 
-  <bean id="mockFileCache" class="com.guidewire.live.formServiceImpl.tests.MockFileCache"/>
+  <bean id="mockFileCache" class="com.guidewire.live.exampleServiceImpl.tests.MockFileCache"/>
 
-  <bean id="formService" class="com.guidewire.live.formServiceImpl.services.ExampleServiceImpl"/>
+  <bean id="exampleService" class="com.guidewire.live.exampleServiceImpl.services.ExampleServiceImpl"/>
 
   <bean id="awsCredentialsProvider" class="com.guidewire.live.corelib.credentials.GWCredentialsProvider">
     <constructor-arg value="${com.guidewire.live.exampleService.credentials.executionRoleArn}"/>

@@ -74,7 +74,7 @@
     <mime-type>text/cache-manifest</mime-type>
   </mime-mapping>
 
-  <session-config>
+  <session-config>E
     <session-timeout>20</session-timeout>
   </session-config>
 </web-app>

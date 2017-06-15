@@ -1,4 +1,4 @@
-package com.guidewire.live.formServiceWebapp.tests.standalone;
+package com.guidewire.live.exampleServiceWebapp.tests.standalone;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.webapp.WebAppContext;
@@ -38,9 +38,9 @@ public class WebApp {
     //context.setVirtualHosts(new String[]{InetAddress.getLocalHost().getCanonicalHostName()});
 
     File wd = new File(".");
-    File formServiceWebapp = new File(wd, "formServiceWebapp");
-    if (formServiceWebapp.exists()) {
-      wd = formServiceWebapp;
+    File exampleServiceWebapp = new File(wd, "exampleServiceWebapp");
+    if (exampleServiceWebapp.exists()) {
+      wd = exampleServiceWebapp;
     }
     File resourceBase = new File(wd, "src/main/webapp");
     File webXml = new File(resourceBase, "WEB-INF/web.xml");
@@ -62,3 +62,4 @@ public class WebApp {
     return server;
   }
 }
+HELLO

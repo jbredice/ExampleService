@@ -8,4 +8,4 @@ test-output/
 /classes
 .DS_Store
 
-/formServiceWebapp/src/main/webapp/WEB-INF/docs/generated
+/exampleServiceWebapp/src/main/webapp/WEB-INF/docs/generated

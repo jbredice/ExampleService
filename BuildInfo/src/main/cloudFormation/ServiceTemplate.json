@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "FormService",
+  "Description": "ExampleService",
   "Parameters": {
     "EnvName": {
       "Type": "String",
@@ -90,10 +90,6 @@
       "Type": "String",
       "Description": "Alert email for resource alerts from this service"
     },
-    "LoginServiceEndpoint": {
-      "Type": "String",
-      "Description": "Where is this service's CAS?"
-    },
     "SumoEndpoint": {
       "Type": "String",
       "Default": "",
@@ -168,7 +164,7 @@
         },
         "Policies": [
           {
-            "PolicyName": "formService",
+            "PolicyName": "exampleService",
             "PolicyDocument": {
               "Version": "2012-10-17",
               "Statement": [
@@ -249,7 +245,7 @@
         "ApplicationName": {
           "Ref": "BeanstalkApplication"
         },
-        "Description": "FormService",
+        "Description": "ExampleService",
         "OptionSettings": [
           {
             "Namespace": "aws:ec2:vpc",
@@ -625,15 +621,9 @@
       }
     },
     "AWSRegion": {
-      "Description": "Region that loginService is running in",
+      "Description": "Region that the service is running in",
       "Value": {
         "Ref": "AWS::Region"
-      }
-    },
-    "LoginServiceEndpoint": {
-      "Description": "Where is this service's CAS?",
-      "Value": {
-        "Ref": "LoginServiceEndpoint"
       }
     },
     "SumoEndpoint": {

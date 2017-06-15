@@ -1,10 +1,10 @@
-package com.guidewire.live.formServiceWebapp.controllers;
+package com.guidewire.live.exampleServiceWebapp.controllers;
 
 import com.guidewire.live.exampleService.generated.model.Request;
 import com.guidewire.live.exampleService.generated.model.Response;
-import com.guidewire.live.formServiceImpl.ExampleService;
-import com.guidewire.live.formServiceImpl.logging.LoggedException;
-import com.guidewire.live.formServiceWebapp.ServiceWebappConstants;
+import com.guidewire.live.exampleServiceImpl.ExampleService;
+import com.guidewire.live.exampleServiceImpl.logging.LoggedException;
+import com.guidewire.live.exampleServiceWebapp.ServiceWebappConstants;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,10 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 
-import static com.guidewire.live.formServiceImpl.logging.LogUtil.error;
+import static com.guidewire.live.exampleServiceImpl.logging.LogUtil.error;
 
 @RestController
-@Secured("ROLE_FORMSERVICE-USER")
 @RequestMapping(ServiceWebappConstants.APP_BASE)
 public class ExampleController {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExampleController.class);
@@ -59,3 +58,4 @@ public class ExampleController {
   }
 
 }
+HELLO
